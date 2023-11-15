@@ -2,6 +2,7 @@
 # How to run? Run this file with python3 main.py
 import math
 import time
+import random
 
 file = "case"
 input_folder = "testcases/"
@@ -13,6 +14,7 @@ CPU_cost, MEM_cost = 0, 0 # cloud costs
 B, CPU, MEM, ACC, cost_per_set = 0, 0, 0, 0, 0 # BBU profile
 num_slices, time_horizon, X = 0, 0, 0
 # the next will be repeated for each slice s (num_slices repeats)
+cu, du, phy = 0, 1, 2
 cpu, mem, acc = 0, 1, 2
 l_a, l_b, l_c, l_d = 0, 1, 2, 3
 CU = {} # CU resource unit
@@ -68,19 +70,19 @@ def deploy2string(s,t):
     return ""+f"{'C' if deployed[s]['cu'][t] == True else 'B'}"+f"{'C' if deployed[s]['du'][t] == True else 'B'}"+f"{'C' if deployed[s]['phy'][t] == True else 'B'}"
 
 
-def print_output(OPEX=0,score=0,time=0,output=f"output.csv"):
+def print_output(OPEX=0, score=0, time=0, output=f"output.csv"):
     with open(output_folder + output, 'w') as f:
-        for s in range(0,num_slices):
-            for t in range(0,time_horizon):
+        for s in range(0, num_slices):
+            for t in range(0, time_horizon):
                 f.write(deploy2string(s,t) + " ")
             f.write("\n")
-        for t in range(0,time_horizon):
+        for t in range(0, time_horizon):
                 f.write(f"{CLOUD_cost_list[t]} ")
         f.write("\n")
-        for t in range(0,time_horizon):
+        for t in range(0, time_horizon):
                 f.write(f"{BBU_cost_list[t]} ")
         f.write("\n")
-        for t in range(0,time_horizon):
+        for t in range(0, time_horizon):
                 f.write(f"{IO_cost_list[t]} ")
         f.write("\n")
         f.write(f"{OPEX}\n")
@@ -106,21 +108,21 @@ def cloud_cost_func(s, t, cu=False, du=False, phy=False):
 def BBU_cost_compute(CPU_allocated_tot, MEM_allocated_tot, ACC_allocated_tot):
     return max(math.ceil(CPU_allocated_tot / CPU), math.ceil(MEM_allocated_tot / MEM), math.ceil(ACC_allocated_tot / ACC)) * cost_per_set
 
-def BBU_cost_func(s, cu=False, du=False, phy=False):
+def BBU_cost_func(s, t, cu=False, du=False, phy=False):
     CPU_allocated, MEM_allocated, ACC_allocated = 0, 0, 0
 
     if cu:
-        CPU_allocated += CU[s][cpu]
-        MEM_allocated += CU[s][mem]
-        ACC_allocated += CU[s][acc]
+        CPU_allocated += CU[s][cpu] * T[s][t]
+        MEM_allocated += CU[s][mem] * T[s][t]
+        ACC_allocated += CU[s][acc] * T[s][t]
     if du:
-        CPU_allocated += DU[s][cpu]
-        MEM_allocated += DU[s][mem]
-        ACC_allocated += DU[s][acc]
+        CPU_allocated += DU[s][cpu] * T[s][t]
+        MEM_allocated += DU[s][mem] * T[s][t]
+        ACC_allocated += DU[s][acc] * T[s][t]
     if phy:
-        CPU_allocated += PHY[s][cpu]
-        MEM_allocated += PHY[s][mem]
-        ACC_allocated += PHY[s][acc]
+        CPU_allocated += PHY[s][cpu] * T[s][t]
+        MEM_allocated += PHY[s][mem] * T[s][t]
+        ACC_allocated += PHY[s][acc] * T[s][t]
 
     return CPU_allocated, MEM_allocated, ACC_allocated
 
@@ -179,9 +181,10 @@ def naive():
     global deployed
 
     CLOUD_cost_list, BBU_cost_list, IO_cost_list = [], [], []
-
     CPU_allocated_list, MEM_allocated_list, ACC_allocated_list = [], [], []
+
     for t in range(time_horizon):
+        # print("Time: ", t)
         CLOUD_cost_list.append(0)
         BBU_cost_list.append(0)
         IO_cost_list.append(0)
@@ -189,38 +192,58 @@ def naive():
         CPU_allocated_list.append(0)
         MEM_allocated_list.append(0)
         ACC_allocated_list.append(0)
+        BBU_board_occupied = 0
+        # TODO: stiamo cambiando il deployed dic ogni volta, ma non dovrebbe essere così (per lo stesso slice s)
         # TODO: check if BBU is full
         for s in range(num_slices):
+            # print("Slice: ", s)
             deployed[s]['cu'].append(False)
             deployed[s]['du'].append(False)
             deployed[s]['phy'].append(False)
             min = 10000000000
-            tot = 0
             cloud_cost_best, BBU_cost_best, IO_cost_best = 0, 0, 0
             CPU_allocated_best, MEM_allocated_best, ACC_allocated_best = 0, 0, 0
-            for combination in [[True, True, True], [True, True, False], [True, False, False], [False, False, False]]:
+            BBU_current_board_req = 0
+            for combination in random.sample([[True, True, True], [True, True, False], [True, False, False], [False, False, False]], 1):
+                tot = 0
+                # print("Combination: ", combination)
                 cloud_cost = cloud_cost_func(s, t, combination[0], combination[1], combination[2])
-                CPU_allocated, MEM_allocated, ACC_allocated = BBU_cost_func(s, combination[0], combination[1], combination[2])
+                # print("Cloud cost: ", cloud_cost)
+                # print("BBU cost func: ", s, not(combination[0]), not(combination[1]), not(combination[2]))
+                CPU_allocated, MEM_allocated, ACC_allocated = BBU_cost_func(s, t, not(combination[0]), not(combination[1]), not(combination[2]))
                 BBU_cost = BBU_cost_compute(CPU_allocated, MEM_allocated, ACC_allocated) # TODO: check if it's correct
+                # print("BBU cost: ", BBU_cost)
                 IO_cost = IO_cost_func(s, t, combination[0], combination[1], combination[2])
+                # print("IO cost: ", IO_cost)
                 tot += cloud_cost + BBU_cost + IO_cost
-                if tot < min:
+                if tot < min and BBU_cost/cost_per_set + BBU_board_occupied <= B:
                     min = tot
-                    deployed[s]['cu'][t] = combination[0]
-                    deployed[s]['du'][t] = combination[1]
-                    deployed[s]['phy'][t] = combination[2]
+                    deployed[s]['cu'][t] = combination[cu]
+                    deployed[s]['du'][t] = combination[du]
+                    deployed[s]['phy'][t] = combination[phy]
                     cloud_cost_best = cloud_cost
                     BBU_cost_best = BBU_cost
                     IO_cost_best = IO_cost
                     CPU_allocated_best = CPU_allocated
                     MEM_allocated_best = MEM_allocated
                     ACC_allocated_best = ACC_allocated
+                    BBU_current_board_req = BBU_cost/cost_per_set
+            BBU_board_occupied += BBU_current_board_req
+            # print("Min: ", min)
+            # print("Deployed (CU, DU, PHY): ", deployed[s]['cu'][t], deployed[s]['du'][t], deployed[s]['phy'][t])
             cloud_cost_tot += cloud_cost_best
             IO_cost_tot += IO_cost_best
             CPU_allocated_list[t] += CPU_allocated_best
             MEM_allocated_list[t] += MEM_allocated_best
             ACC_allocated_list[t] += ACC_allocated_best
+        # print("Current cloud list: ", CLOUD_cost_list)
+        # print("Current BBU list: ", BBU_cost_list)
+        # print("Current IO list: ", IO_cost_list)
+        # print("===================================================")
         CLOUD_cost_list[t] = cloud_cost_tot
+        # print("CPU allocated: ", CPU_allocated_list[t])
+        # print("MEM allocated: ", MEM_allocated_list[t])
+        # print("ACC allocated: ", ACC_allocated_list[t])
         BBU_cost_list[t] = BBU_cost_compute(CPU_allocated_list[t], MEM_allocated_list[t], ACC_allocated_list[t])
         IO_cost_list[t] = IO_cost_tot
                 
@@ -240,26 +263,57 @@ if __name__ == "__main__":
     #     print(L[i])
     #     print(T[i])
 
-    for i in range(20):
+    for s in range(num_slices):
+        deployed[s] = {'cu': [], 'du': [], 'phy': []}
+    start_time = time.time()
+    naive()
+    execution_time += int((time.time() - start_time) * 1000)
+    # compute action cost list
+    for t in range(time_horizon):
+        action_cost_list.append(0)
+    for s in range(num_slices):
+        for t in range(1, time_horizon):
+            if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
+                action_cost_list[t] += action_cost
+            if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
+                action_cost_list[t] += action_cost
+            if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
+                action_cost_list[t] += action_cost
+    OPEX = opex()
+    score = score_func(OPEX)
 
-        parse_init(file + str(i+1) + ".txt")
+    print_output(OPEX=OPEX, score=score, time=execution_time, output="toy_example.csv")
 
-        # initialize deployed dic
-        for s in range(num_slices):
-            deployed[s] = {'cu': [], 'du': [], 'phy': []}
 
-        start_time = time.time()
+    # for i in range(20):
 
-        naive()
+    #     parse_init(file + str(i+1) + ".txt")
 
-        execution_time += time.time() - start_time
+    #     # initialize deployed dic
+    #     for s in range(num_slices):
+    #         deployed[s] = {'cu': [], 'du': [], 'phy': []}
 
-        for t in range(time_horizon):
-            action_cost_list.append(0)
-        OPEX = opex()
-        score = score_func(OPEX)
+    #     start_time = time.time()
 
-        print_output(OPEX=OPEX, score=score, time=execution_time, output=str(i+1) + ".csv")
+    #     naive()
+
+    #     execution_time += int((time.time() - start_time) * 1000)
+
+    #     # compute action cost list
+    #     for t in range(time_horizon):
+    #         action_cost_list.append(0)
+    #     for s in range(num_slices):
+    #         for t in range(1, time_horizon):
+    #             if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
+    #                 action_cost_list[t] += action_cost
+    #             if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
+    #                 action_cost_list[t] += action_cost
+    #             if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
+    #                 action_cost_list[t] += action_cost
+    #     OPEX = opex()
+    #     score = score_func(OPEX)
+
+    #     print_output(OPEX=OPEX, score=score, time=execution_time, output=str(i+1) + ".csv")
 
     
     
