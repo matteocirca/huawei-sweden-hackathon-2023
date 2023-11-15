@@ -4,6 +4,8 @@ import math
 import time
 import random
 
+# random.seed(42)
+
 file = "case"
 input_folder = "testcases/"
 output_folder = "output/"
@@ -48,13 +50,13 @@ deployed = {} # deployed service to keep track of the deployed services over tim
 def parse_init(file_name):
     global baseline_cost, action_cost, CPU_cost, MEM_cost
     global B, CPU, MEM, ACC, cost_per_set
-    global num_slices, time_horizon, CPU_ACC_ratio, CU, DU, PHY, L_a, L_b, L_c, L_d, T
+    global num_slices, time_horizon, X, CU, DU, PHY, L_a, L_b, L_c, L_d, T
 
     with open(input_folder + file_name) as f:
         baseline_cost, action_cost = map(int, f.readline().split())
         CPU_cost, MEM_cost = map(int, f.readline().split())
         B, CPU, MEM, ACC, cost_per_set = map(int, f.readline().split())
-        num_slices, time_horizon, CPU_ACC_ratio = map(int, f.readline().split())
+        num_slices, time_horizon, X = map(int, f.readline().split())
         
         for i in range(num_slices):
             CU[i] = list(map(int, f.readline().split()))
@@ -151,18 +153,18 @@ def IO_cost_func(s,t, cu=False, du=False, phy=False):
 
     return IO_cost * T[s][t]
 
-def action_cost(s, t):
-    service_reloc = 0
+# def action_cost(s, t):
+#     service_reloc = 0
 
-    # check for relocation from deployed dict
-    if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
-        service_reloc += 1
-    if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
-        service_reloc += 1
-    if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
-        service_reloc += 1
+#     # check for relocation from deployed dict
+#     if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
+#         service_reloc += 1
+#     if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
+#         service_reloc += 1
+#     if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
+#         service_reloc += 1
 
-    return service_reloc * action_cost
+#     return service_reloc * action_cost
 
 def opex():
     OPEX = 0
@@ -175,6 +177,11 @@ def opex():
 def score_func(OPEX):
     return max(0, baseline_cost/OPEX - 1)
 
+
+testcase = {
+            0: [(False, False, False), (False, False, False), (True, False, False), (True, False, False), (True, True, False)], 
+            1: [(False, False, False), (False, False, False), (False, False, False), (False, False, False), (False, False, False)]
+        }
 
 def naive():
     global CLOUD_cost_list, BBU_cost_list, IO_cost_list
@@ -192,7 +199,6 @@ def naive():
         CPU_allocated_list.append(0)
         MEM_allocated_list.append(0)
         ACC_allocated_list.append(0)
-        BBU_board_occupied = 0
         # TODO: stiamo cambiando il deployed dic ogni volta, ma non dovrebbe essere così (per lo stesso slice s)
         # TODO: check if BBU is full
         for s in range(num_slices):
@@ -201,34 +207,29 @@ def naive():
             deployed[s]['du'].append(False)
             deployed[s]['phy'].append(False)
             min = 10000000000
-            cloud_cost_best, BBU_cost_best, IO_cost_best = 0, 0, 0
+            cloud_cost_best, IO_cost_best = 0, 0
             CPU_allocated_best, MEM_allocated_best, ACC_allocated_best = 0, 0, 0
-            BBU_current_board_req = 0
-            for combination in random.sample([[True, True, True], [True, True, False], [True, False, False], [False, False, False]], 1):
+            for combination in [[True, True, True], [True, True, False], [True, False, False], [False, False, False]]:
                 tot = 0
                 # print("Combination: ", combination)
                 cloud_cost = cloud_cost_func(s, t, combination[0], combination[1], combination[2])
                 # print("Cloud cost: ", cloud_cost)
                 # print("BBU cost func: ", s, not(combination[0]), not(combination[1]), not(combination[2]))
                 CPU_allocated, MEM_allocated, ACC_allocated = BBU_cost_func(s, t, not(combination[0]), not(combination[1]), not(combination[2]))
-                BBU_cost = BBU_cost_compute(CPU_allocated, MEM_allocated, ACC_allocated) # TODO: check if it's correct
-                # print("BBU cost: ", BBU_cost)
                 IO_cost = IO_cost_func(s, t, combination[0], combination[1], combination[2])
                 # print("IO cost: ", IO_cost)
-                tot += cloud_cost + BBU_cost + IO_cost
-                if tot < min and BBU_cost/cost_per_set + BBU_board_occupied <= B:
+                BBU_check = math.ceil(max((CPU_allocated_list[t] + CPU_allocated) / CPU, (MEM_allocated_list[t] + MEM_allocated) / MEM, (ACC_allocated_list[t] + ACC_allocated) / ACC))
+                tot += cloud_cost + BBU_check * cost_per_set + IO_cost
+                if tot < min and BBU_check <= B:
                     min = tot
                     deployed[s]['cu'][t] = combination[cu]
                     deployed[s]['du'][t] = combination[du]
                     deployed[s]['phy'][t] = combination[phy]
                     cloud_cost_best = cloud_cost
-                    BBU_cost_best = BBU_cost
                     IO_cost_best = IO_cost
                     CPU_allocated_best = CPU_allocated
                     MEM_allocated_best = MEM_allocated
                     ACC_allocated_best = ACC_allocated
-                    BBU_current_board_req = BBU_cost/cost_per_set
-            BBU_board_occupied += BBU_current_board_req
             # print("Min: ", min)
             # print("Deployed (CU, DU, PHY): ", deployed[s]['cu'][t], deployed[s]['du'][t], deployed[s]['phy'][t])
             cloud_cost_tot += cloud_cost_best
@@ -263,57 +264,57 @@ if __name__ == "__main__":
     #     print(L[i])
     #     print(T[i])
 
-    for s in range(num_slices):
-        deployed[s] = {'cu': [], 'du': [], 'phy': []}
-    start_time = time.time()
-    naive()
-    execution_time += int((time.time() - start_time) * 1000)
-    # compute action cost list
-    for t in range(time_horizon):
-        action_cost_list.append(0)
-    for s in range(num_slices):
-        for t in range(1, time_horizon):
-            if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
-                action_cost_list[t] += action_cost
-            if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
-                action_cost_list[t] += action_cost
-            if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
-                action_cost_list[t] += action_cost
-    OPEX = opex()
-    score = score_func(OPEX)
+    # for s in range(num_slices):
+    #     deployed[s] = {'cu': [], 'du': [], 'phy': []}
+    # start_time = time.time()
+    # naive()
+    # execution_time += int((time.time() - start_time) * 1000)
+    # # compute action cost list
+    # for t in range(time_horizon):
+    #     action_cost_list.append(0)
+    # for s in range(num_slices):
+    #     for t in range(1, time_horizon):
+    #         if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
+    #             action_cost_list[t] += action_cost
+    #         if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
+    #             action_cost_list[t] += action_cost
+    #         if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
+    #             action_cost_list[t] += action_cost
+    # OPEX = opex()
+    # score = score_func(OPEX)
 
-    print_output(OPEX=OPEX, score=score, time=execution_time, output="toy_example.csv")
+    # print_output(OPEX=OPEX, score=score, time=execution_time, output="toy_example.csv")
 
 
-    # for i in range(20):
+    for i in range(20):
 
-    #     parse_init(file + str(i+1) + ".txt")
+        parse_init(file + str(i+1) + ".txt")
 
-    #     # initialize deployed dic
-    #     for s in range(num_slices):
-    #         deployed[s] = {'cu': [], 'du': [], 'phy': []}
+        # initialize deployed dic
+        for s in range(num_slices):
+            deployed[s] = {'cu': [], 'du': [], 'phy': []}
 
-    #     start_time = time.time()
+        start_time = time.time()
 
-    #     naive()
+        naive()
 
-    #     execution_time += int((time.time() - start_time) * 1000)
+        execution_time += int((time.time() - start_time) * 1000)
 
-    #     # compute action cost list
-    #     for t in range(time_horizon):
-    #         action_cost_list.append(0)
-    #     for s in range(num_slices):
-    #         for t in range(1, time_horizon):
-    #             if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
-    #                 action_cost_list[t] += action_cost
-    #             if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
-    #                 action_cost_list[t] += action_cost
-    #             if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
-    #                 action_cost_list[t] += action_cost
-    #     OPEX = opex()
-    #     score = score_func(OPEX)
+        # compute action cost list
+        for t in range(time_horizon):
+            action_cost_list.append(0)
+        for s in range(num_slices):
+            for t in range(1, time_horizon):
+                if deployed[s]['cu'][t] != deployed[s]['cu'][t-1]:
+                    action_cost_list[t] += action_cost
+                if deployed[s]['du'][t] != deployed[s]['du'][t-1]:
+                    action_cost_list[t] += action_cost
+                if deployed[s]['phy'][t] != deployed[s]['phy'][t-1]:
+                    action_cost_list[t] += action_cost
+        OPEX = opex()
+        score = score_func(OPEX)
 
-    #     print_output(OPEX=OPEX, score=score, time=execution_time, output=str(i+1) + ".csv")
+        print_output(OPEX=OPEX, score=score, time=execution_time, output=str(i+1) + ".csv")
 
     
     
