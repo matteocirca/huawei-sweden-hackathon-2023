@@ -208,6 +208,12 @@ testcase = {
             0: [(False, False, False), (False, False, False), (True, False, False), (True, False, False), (True, True, False)], 
             1: [(False, False, False), (False, False, False), (False, False, False), (False, False, False), (False, False, False)]
         }
+def order_slice_by_traffic(t):
+    traffic_list = []
+    for s in range(num_slices):
+        traffic_list.append((PHY[s][acc]*T[s][t],s))
+    traffic_list.sort(reverse=True)
+    return [x[1] for x in traffic_list]
 
 def naive():
     global CLOUD_cost_list, BBU_cost_list, IO_cost_list
@@ -273,7 +279,73 @@ def naive():
         # print("ACC allocated: ", ACC_allocated_list[t])
         BBU_cost_list[t] = BBU_cost_compute(CPU_allocated_list[t], MEM_allocated_list[t], ACC_allocated_list[t])
         IO_cost_list[t] = IO_cost_tot
-                
+
+
+def heuristic():
+    global CLOUD_cost_list, BBU_cost_list, IO_cost_list
+    global deployed
+
+    CLOUD_cost_list, BBU_cost_list, IO_cost_list = [], [], []
+    CPU_allocated_list, MEM_allocated_list, ACC_allocated_list = [], [], []
+
+    for t in range(time_horizon):
+        CLOUD_cost_list.append(0)
+        BBU_cost_list.append(0)
+        IO_cost_list.append(0)
+        cloud_cost_tot, BBU_cost_tot, IO_cost_tot = 0, 0, 0
+        CPU_allocated_list.append(0)
+        MEM_allocated_list.append(0)
+        ACC_allocated_list.append(0)
+        
+        for s in order_slice_by_traffic(t):
+            deployed[s]['cu'].append(True)
+            deployed[s]['du'].append(True)
+            deployed[s]['phy'].append(True)
+            CPU_allocated_dp, MEM_allocated_dp, ACC_allocated_dp = BBU_cost_func(s, t, not(True), not(False), not(False))
+            BBU_check_dp = math.ceil(max((CPU_allocated_list[t] + CPU_allocated_dp) / CPU, (MEM_allocated_list[t] + MEM_allocated_dp) / MEM, (ACC_allocated_list[t] + ACC_allocated_dp) / ACC))
+            cloud_cost = 0
+            IO_cost = 0
+            CPU_allocated, MEM_allocated, ACC_allocated = 0,0,0
+            if BBU_check_dp <= B:   
+                deployed[s]['du'][t] = False 
+                deployed[s]['phy'][t] = False
+                cloud_cost = cloud_cost_func(s, t, True, False, False)
+                IO_cost = IO_cost_func(s, t, True, False, False)
+                CPU_allocated = CPU_allocated_dp
+                MEM_allocated = MEM_allocated_dp
+                ACC_allocated = ACC_allocated_dp
+            else:
+                CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(True), not(True), not(False))
+                BBU_check_p = math.ceil(max((CPU_allocated_list[t] + CPU_allocated_p) / CPU, (MEM_allocated_list[t] + MEM_allocated_p) / MEM, (ACC_allocated_list[t] + ACC_allocated_p) / ACC))
+                if BBU_check_p <= B:
+                    deployed[s]['phy'][t] = False
+                    cloud_cost = cloud_cost_func(s, t, True, True, False)
+                    IO_cost = IO_cost_func(s, t, True, True, False)
+                    CPU_allocated = CPU_allocated_p
+                    MEM_allocated = MEM_allocated_p
+                    ACC_allocated = ACC_allocated_p
+                else:
+                    CPU_allocated = 0
+                    MEM_allocated = 0
+                    ACC_allocated = 0
+                    deployed[s]['phy'][t] = True
+                    cloud_cost = cloud_cost_func(s, t, True, True, True)
+                    IO_cost = IO_cost_func(s, t, True, True, True)
+            cloud_cost_tot+=cloud_cost
+            IO_cost_tot+=IO_cost
+            CPU_allocated_list[t] += CPU_allocated
+            MEM_allocated_list[t] += MEM_allocated
+            ACC_allocated_list[t] += ACC_allocated
+        CLOUD_cost_list[t] = cloud_cost_tot
+        # print("CPU allocated: ", CPU_allocated_list[t])
+        # print("MEM allocated: ", MEM_allocated_list[t])
+        # print("ACC allocated: ", ACC_allocated_list[t])
+        BBU_cost_list[t] = BBU_cost_compute(CPU_allocated_list[t], MEM_allocated_list[t], ACC_allocated_list[t])
+        IO_cost_list[t] = IO_cost_tot
+
+            
+            
+
 
 if __name__ == "__main__":
 
@@ -322,7 +394,7 @@ if __name__ == "__main__":
 
         start_time = time.time()
 
-        naive()
+        heuristic()
 
         execution_time += int((time.time() - start_time) * 1000)
 
