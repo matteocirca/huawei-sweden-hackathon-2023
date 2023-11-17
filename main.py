@@ -527,7 +527,103 @@ def layerheuristic():
             IO_cost_list[t] += IO_cost_func(s, t, deployed[s]['cu'][t], deployed[s]['du'][t], deployed[s]['phy'][t])
             CLOUD_cost_list[t] += cloud_cost_func(s,t,deployed[s]["cu"][t],deployed[s]["du"][t],deployed[s]["phy"][t])
 
+def semilayerheuristic():
+    global CLOUD_cost_list, BBU_cost_list, IO_cost_list
+    global deployed
+    CPU_boundary, MEM_boundary, ACC_boundary = B*CPU,B*MEM,B*ACC
+    CLOUD_cost_list, BBU_cost_list, IO_cost_list = [], [], []
+    CPU_allocated_list, MEM_allocated_list, ACC_allocated_list = [], [], []
+    count=0
+    # phy_order = order_slice_by_traffic(0)
+    # du_order = phy_order
+    # cpu_order = phy_order
 
+    for t in range(time_horizon):
+        CLOUD_cost_list.append(0)
+        BBU_cost_list.append(0)
+        IO_cost_list.append(0)
+        CPU_allocated_list.append(0)
+        MEM_allocated_list.append(0)
+        ACC_allocated_list.append(0)
+        if t%10 == 0:
+            phy_order, du_order, cu_order = order_slice_by_IOcost(t)
+            
+
+        #cycle for phy
+        for s in phy_order:
+            CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = 0,0,0
+           
+            deployed[s]['phy'].append(True)
+            deployed[s]['du'].append(True)
+           
+            CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(True), not(False), not(False))
+            #BBU_check_p = math.ceil(max((CPU_allocated_list[t] + CPU_allocated_p) / CPU, (MEM_allocated_list[t] + MEM_allocated_p) / MEM, (ACC_allocated_list[t] + ACC_allocated_p) / ACC))
+            if BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p) and PHY[s][acc]>0: 
+                deployed[s]['phy'][t] = False
+                deployed[s]['du'][t] = False
+                CPU_allocated_list[t] += CPU_allocated_p
+                MEM_allocated_list[t] += MEM_allocated_p
+                ACC_allocated_list[t] += ACC_allocated_p
+            else:
+                deployed[s]['phy'][t] = True
+                deployed[s]['du'][t] = True
+            
+
+                
+            # else:
+            #     deployed[s]['phy'].append(deployed[s]['phy'][t-1])
+            #     if(deployed[s]['phy'][t-1] == False):
+            #         CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(True), not(True), not(False))
+            #         if BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p):
+            #             deployed[s]['phy'][t] == False
+            #             CPU_allocated_list[t] += CPU_allocated_p
+            #             MEM_allocated_list[t] += MEM_allocated_p
+            #             ACC_allocated_list[t] += ACC_allocated_p
+            #         else:
+            #             deployed[s]['phy'][t] == True
+                
+                        
+        
+
+                
+        for s in cu_order:
+            CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = 0,0,0
+            deployed[s]['cu'].append(True)
+            
+            #if count % 10 == 0:
+            CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(False), not(True), not(True))
+            new = math.ceil(max((CPU_allocated_list[t] + CPU_allocated_p) / CPU, (MEM_allocated_list[t] + MEM_allocated_p) / MEM, (ACC_allocated_list[t] + ACC_allocated_p) / ACC))
+            old = math.ceil(max((CPU_allocated_list[t]) / CPU, (MEM_allocated_list[t]) / MEM, (ACC_allocated_list[t]) / ACC))
+            if new == old:
+                if BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p)and deployed[s]["phy"][t]==False and deployed[s]["du"][t]==False: 
+                    deployed[s]['cu'][t] = False
+                    CPU_allocated_list[t] += CPU_allocated_p
+                    MEM_allocated_list[t] += MEM_allocated_p
+                    ACC_allocated_list[t] += ACC_allocated_p
+                else:
+                    deployed[s]['cu'][t] = True
+            else:
+                deployed[s]['cu'][t] = True
+
+        
+            # else:
+            #     if deployed[s]['cu'][t-1] == False:
+            #         CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(False), not(True), not(True))
+            #         if BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p)and deployed[s]["phy"][t]==False and deployed[s]["du"][t]==False: 
+            #             deployed[s]['cu'][t] = False
+            #             CPU_allocated_list[t] += CPU_allocated_p
+            #             MEM_allocated_list[t] += MEM_allocated_p
+            #             ACC_allocated_list[t] += ACC_allocated_p
+        
+        # print("CPU allocated: ", CPU_allocated_list[t])
+        # print("MEM allocated: ", MEM_allocated_list[t])
+        # print("ACC allocated: ", ACC_allocated_list[t])
+        count+=1
+        BBU_cost_list[t] = BBU_cost_compute(CPU_allocated_list[t], MEM_allocated_list[t], ACC_allocated_list[t])
+        
+        for s in deployed:
+            IO_cost_list[t] += IO_cost_func(s, t, deployed[s]['cu'][t], deployed[s]['du'][t], deployed[s]['phy'][t])
+            CLOUD_cost_list[t] += cloud_cost_func(s,t,deployed[s]["cu"][t],deployed[s]["du"][t],deployed[s]["phy"][t])
 
 
 
@@ -592,7 +688,8 @@ if __name__ == "__main__":
         layer_score = score_func(layer_opex_computed)
         h_opex_computed = 0
         h_score = 0
-        if execution_time < 300:
+        #if False:
+        if execution_time < 500:
             second_time = time.time()
             layer_act = action_cost_list.copy()
             layer_cloud = CLOUD_cost_list.copy()
@@ -606,9 +703,9 @@ if __name__ == "__main__":
             CLOUD_cost_list = []
             BBU_cost_list = []
             IO_cost_list = []
-            heuristic()
+            semilayerheuristic()
 
-            execution_time += int((time.time() - second_time) * 1000)
+            execution_time = int((time.time() - start_time) * 1000)
             
             for t in range(time_horizon):
                 action_cost_list.append(0)
