@@ -38,7 +38,7 @@ action_cost_list = [] # action cost
 
 CPU_boundary, MEM_boundary, ACC_boundary = 0,0,0
 
-deployed = {} # deployed service to keep track of the deployed services over time
+deployed = {} # deployed service to keep track of the deployed services over time. True for Cloud, False for BBU
 
 def parse_init(file_name):
     global baseline_cost, action_cost, CPU_cost, MEM_cost
@@ -90,9 +90,9 @@ def clear():
     action_cost_list = [] # action cost
     deployed = {}
 
+
 def deploy2string(s,t,_deployed):
     return ""+f"{'C' if _deployed[s]['cu'][t] == True else 'B'}"+f"{'C' if _deployed[s]['du'][t] == True else 'B'}"+f"{'C' if _deployed[s]['phy'][t] == True else 'B'}"
-
 
 def print_output(OPEX=0, score=0, time=0, output=f"output.csv", Cl = [], Bl = [], IOl = [],_deployed = {}):
     with open(output_folder + output, 'w') as f:
@@ -196,6 +196,7 @@ def opex(action_cost_list, CLOUD_cost_list, BBU_cost_list, IO_cost_list):
 def score_func(OPEX):
     return max(0, baseline_cost/OPEX - 1)
 
+
 def nextTrafficMean(s,t):
     sum = 0
     count = 0
@@ -207,44 +208,6 @@ def nextTrafficMean(s,t):
             pass
     #print(sum/count)
     return math.ceil(sum/count)
-
-def order_slice_by_mem(t):
-    traffic_list = []
-    for s in range(num_slices):
-        cpu,mem,acc =BBU_cost_func(s,t,not(False),not(False),not(False))
-        cc = cloud_cost_func(s,t,True,True,True)
-        traffic_list.append(((BBU_cost_compute(cpu,mem,acc)/((cc if cc != 0 else 1)*L[s][l_d]*(T[s][t] if T[s][t] != 0 else 1))),s))
-    traffic_list.sort(reverse=False)
-    res =  [x[1] for x in traffic_list]
-    #print([x[0] for x in traffic_list])
-    return res
-def order_slice_by_traffic(t):
-    alpha = 0.8
-    traffic_list = []
-    for s in range(num_slices):
-        traffic_list.append((PHY[s][acc]*nextTrafficMean(s,t),s))
-    traffic_list.sort(reverse=True)
-    return [x[1] for x in traffic_list]
-def order_slice_by_metric(t,service,metric):
-    traffic_list = []
-    for s in range(num_slices):
-        traffic_list.append((service[s][metric]*nextTrafficMean(s,t),s))
-    traffic_list.sort(reverse=True)
-    return [x[1] for x in traffic_list]
-
-def order_slice_by_acc(t):
-    traffic_list = []
-    for s in range(num_slices):
-        benefit = 0
-        if t>0:
-            benefit = 1 if deployed[s]["phy"][t-1] == False else 0
-            benefit = -5 if PHY[s][acc] <= 1 else benefit
-        traffic_list.append(((PHY[s][acc]+DU[s][acc]+benefit),s))
-
-    traffic_list.sort(reverse=True)
-    res =  [x[1] for x in traffic_list]
-    #print([x[0] for x in traffic_list])
-    return res
 
 def order_slice_by_IOcost2(t):
     traffic_list_phy,traffic_list_du,traffic_list_cu = [],[],[]
@@ -316,8 +279,6 @@ def layerheuristic():
                     CPU_allocated_list[t] += CPU_allocated_p
                     MEM_allocated_list[t] += MEM_allocated_p
                     ACC_allocated_list[t] += ACC_allocated_p
-                else:
-                    deployed[s]['phy'][t] = True
             else:
                 if deployed[s]['phy'][t-1] == False:
                     CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(True), not(True), not(False))
@@ -326,7 +287,6 @@ def layerheuristic():
                         CPU_allocated_list[t] += CPU_allocated_p
                         MEM_allocated_list[t] += MEM_allocated_p
                         ACC_allocated_list[t] += ACC_allocated_p
-
                 
                         
         for s in du_order:
@@ -429,6 +389,7 @@ def semilayerheuristic():
                 deployed[s]['phy'][t] = True
                 deployed[s]['du'][t] = True
 
+
         for s in phy_order:
             CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = 0,0,0
             deployed[s]['cu'].append(True)
@@ -474,7 +435,7 @@ def STATS():
             print(f"Test {i}: score  {float(Lines[-2:][0].strip())}, execution {time}")
             sum+=float(Lines[-2:][0].strip())
     print("==============================================================")
-    print(f"TOTAL SCORE: {sum} , Total time: {tot_time} ,Time exceeded in tests: {time_exceeded}")
+    print(f"TOTAL SCORE: {sum}, Total time: {tot_time}, Time exceeded in tests: {time_exceeded}")
     print("==============================================================")        
             
 
@@ -497,7 +458,7 @@ if __name__ == "__main__":
 
 
 
-    #     # compute action cost list
+        # compute action cost list
         for t in range(time_horizon):
             action_cost_list.append(0)
         for s in range(num_slices):
@@ -531,6 +492,7 @@ if __name__ == "__main__":
             CLOUD_cost_list = []
             BBU_cost_list = []
             IO_cost_list = []
+
             semilayerheuristic()
 
             execution_time = int((time.time() - start_time) * 1000)
