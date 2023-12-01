@@ -15,5 +15,5 @@ for i in range(1,21):
         print(f"Test {i}: score  {float(Lines[-2:][0].strip())}, execution {time}")
         sum+=float(Lines[-2:][0].strip())
 print("==============================================================")
-print(f"TOTAL SCORE: {sum} , Time exceeded in tests: {time_exceeded}")
+print(f"TOTAL SCORE: {sum}, Time exceeded in tests: {time_exceeded}")
 print("==============================================================")
