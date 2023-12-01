@@ -131,7 +131,7 @@ def BBU_check(C_t,M_t,A_t,C_r,M_r,A_r):
     flag = True
     BBU_check_p = math.ceil(max((C_t + C_r) / CPU, (M_t + M_r) / MEM, (A_t + A_r) / ACC))
     #if BBU_check_p > B or (C_t + C_r > CPU_boundary) or (M_t + M_r > MEM_boundary) or ( A_t + A_r > ACC_boundary):
-    if BBU_check_p > (B - math.floor(B * 0.5)):
+    if BBU_check_p > (B - math.floor(B * 0.4)):
     # if BBU_check_p > B:
         flag = False
     return flag
@@ -225,14 +225,17 @@ def order_slice_by_IOcost(t):
     traffic_list_phy,traffic_list_du,traffic_list_cu = [],[],[]
     for s in range(num_slices):
         benefit  = 0
-        if t>0:
-            benefit = 10 if (deployed[s]["phy"][t-1] == False) else 0
-            #benefit = benefit-1 if T[s][t] < 3 else benefit
-            benefit = benefit-1 if PHY[s][acc] < 3 else benefit
+        # if t>0:
+        #     benefit = 10 if (deployed[s]["phy"][t-1] == False) else 0
+        #     #benefit = benefit-1 if T[s][t] < 3 else benefit
+        #     benefit = benefit-1 if PHY[s][acc] < 3 else benefit
         #next = nextTrafficMean(s,t)
-        _phy = PHY[s][acc]+benefit
-        _du = DU[s][acc]+benefit
-        _cu = CU[s][mem]+benefit
+        # _phy = PHY[s][acc]+benefit
+        # _du = DU[s][acc]+benefit
+        # _cu = CU[s][mem]+benefit
+        _phy = L[s][l_c]
+        _du = DU[s][l_b]
+        _cu = CU[s][l_a]
         traffic_list_phy.append((_phy,s))
         traffic_list_du.append((_du,s))
         traffic_list_cu.append((_cu,s))
