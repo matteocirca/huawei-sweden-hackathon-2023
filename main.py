@@ -208,7 +208,7 @@ def nextTrafficMean(s,t):
 def order_slice_by_IOcost2(t):
     traffic_list_phy,traffic_list_du,traffic_list_cu = [],[],[]
     for s in range(num_slices):
-        benefit  = 0
+        benefit = 0
         if t>0:
             benefit = 10 if (deployed[s]["phy"][t-1] == False)and(deployed[s]["du"][t-1] == False) else 0
             benefit = benefit-1 if PHY[s][acc] < 3 else benefit
@@ -285,7 +285,7 @@ def layerheuristic():
                             MEM_allocated_list[t] += MEM_allocated_p
                             ACC_allocated_list[t] += ACC_allocated_p
 
-                deployed[s]['phy_lock'] = transition_time if deployed[s]['phy'][t] != deployed[s]['phy'][t-1] and t!=0 else 0
+                deployed[s]['phy_lock'] = transition_time+1 if deployed[s]['phy'][t] != deployed[s]['phy'][t-1] and t!=0 else 0
             else:
                 if deployed[s]['phy'][t-1] == False:
                     CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(True), not(True), not(False))
@@ -334,8 +334,8 @@ def layerheuristic():
                             MEM_allocated_list[t] += MEM_allocated_p
                             ACC_allocated_list[t] += ACC_allocated_p
 
-                deployed[s]['du_lock'] = transition_time if deployed[s]['du'][t] != deployed[s]['du'][t-1] and t!=0 else 0
-                deployed[s]['phy_lock'] = transition_time if deployed[s]['du'][t] != deployed[s]['du'][t-1] and deployed[s]['du'][t] == False and t!=0 else 0
+                deployed[s]['du_lock'] = transition_time+1 if deployed[s]['du'][t] != deployed[s]['du'][t-1] and t!=0 else 0
+                deployed[s]['phy_lock'] = transition_time+1 if deployed[s]['du'][t] != deployed[s]['du'][t-1] and deployed[s]['du'][t] == False and t!=0 else deployed[s]['phy_lock']
             else:
                 if deployed[s]['du'][t-1] == False:
                     CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(True), not(False), not(True))
@@ -367,9 +367,9 @@ def layerheuristic():
                 else:
                     deployed[s]['cu'][t] = True
                 
-                deployed[s]['cu_lock'] = transition_time if deployed[s]['cu'][t] != deployed[s]['cu'][t-1] and t!=0 else 0
-                deployed[s]['phy_lock'] = transition_time if deployed[s]['cu'][t] != deployed[s]['cu'][t-1] and deployed[s]['cu'][t] == False and t!=0 else 0
-                deployed[s]['du_lock'] = transition_time if deployed[s]['cu'][t] != deployed[s]['cu'][t-1] and deployed[s]['cu'][t] == False and t!=0 else 0
+                deployed[s]['cu_lock'] = transition_time+1 if deployed[s]['cu'][t] != deployed[s]['cu'][t-1] and t!=0 else 0
+                deployed[s]['phy_lock'] = transition_time+1 if deployed[s]['cu'][t] != deployed[s]['cu'][t-1] and deployed[s]['cu'][t] == False and t!=0 else deployed[s]['phy_lock']
+                deployed[s]['du_lock'] = transition_time+1 if deployed[s]['cu'][t] != deployed[s]['cu'][t-1] and deployed[s]['cu'][t] == False and t!=0 else deployed[s]['du_lock']
             else:
                 if deployed[s]['cu'][t-1] == False:
                     CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(False), not(True), not(True))
