@@ -131,7 +131,7 @@ def BBU_check(C_t,M_t,A_t,C_r,M_r,A_r):
     flag = True
     BBU_check_p = math.ceil(max((C_t + C_r) / CPU, (M_t + M_r) / MEM, (A_t + A_r) / ACC))
     #if BBU_check_p > B or (C_t + C_r > CPU_boundary) or (M_t + M_r > MEM_boundary) or ( A_t + A_r > ACC_boundary):
-    if BBU_check_p > (B - math.floor(B * 0.4)):
+    if BBU_check_p > (B - math.floor(B * 0.2)):
     # if BBU_check_p > B:
         flag = False
     return flag
@@ -675,7 +675,7 @@ if __name__ == "__main__":
 
         start_time = time.time()
 
-        semilayerheuristic()
+        semisemilayerheuristic()
 
         execution_time += int((time.time() - start_time) * 1000)
 
@@ -689,8 +689,8 @@ if __name__ == "__main__":
 
         h_opex_computed = 0
         h_score = 0
-        # if False:
-        if execution_time < 500:
+        if False:
+        # if execution_time < 500:
             second_time = time.time()
             layer_cloud = CLOUD_cost_list.copy()
             layer_bbu = BBU_cost_list.copy()
