@@ -577,7 +577,7 @@ def semisemilayerheuristic(bbu_par=0.3):
         MEM_allocated_list.append(0)
         ACC_allocated_list.append(0)
         
-        if t == 0:
+        if t == 0 or t == time_horizon-transition_time-1:
             order = order_slice_by_IOcost_4(t)
             
 
