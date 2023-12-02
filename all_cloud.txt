@@ -1,0 +1,48 @@
+==============================================================
+Test 1: score  0.0, execution 11
+Test 2: score  0.0, execution 67
+Test 3: score  0.0, execution 166
+Test 4: score  0.1816278424149791, execution 315
+Test 5: score  0.0, execution 321
+Test 6: score  0.0, execution 378
+Test 7: score  0.0, execution 527
+Test 8: score  0.0, execution 560
+Test 9: score  0.0, execution 548
+Test 10: score  0.0, execution 554
+Test 11: score  0.0, execution 612
+Test 12: score  0.0, execution 789
+Test 13: score  0.0, execution 947
+Test 14: score  0.0, execution 534
+Test 15: score  0.0, execution 611
+Test 16: score  0.0, execution 594
+Test 17: score  0.0 TIME EXCEEDED
+Test 18: score  0.18251559435655773 TIME EXCEEDED
+Test 19: score  0.0, execution 663
+Test 20: score  0.0, execution 741
+==============================================================
+TOTAL SCORE: 0.1816278424149791, Total time: 11092, Time exceeded in tests: [17, 18]
+==============================================================
+==============================================================
+Test 1: score  0.0, execution 11
+Test 2: score  0.0, execution 65
+Test 3: score  0.0, execution 164
+Test 4: score  0.1816278424149791, execution 331
+Test 5: score  0.0, execution 316
+Test 6: score  0.0, execution 378
+Test 7: score  0.0, execution 507
+Test 8: score  0.0, execution 560
+Test 9: score  0.0, execution 571
+Test 10: score  0.0, execution 570
+Test 11: score  0.0, execution 547
+Test 12: score  0.0, execution 804
+Test 13: score  0.0, execution 994
+Test 14: score  0.0 TIME EXCEEDED
+Test 15: score  0.0, execution 662
+Test 16: score  0.0, execution 654
+Test 17: score  0.0, execution 656
+Test 18: score  0.18251559435655773, execution 533
+Test 19: score  0.0, execution 669
+Test 20: score  0.0, execution 726
+==============================================================
+TOTAL SCORE: 0.3641434367715368, Total time: 10863, Time exceeded in tests: [14]
+==============================================================

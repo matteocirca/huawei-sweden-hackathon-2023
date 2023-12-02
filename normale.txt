@@ -1,0 +1,24 @@
+==============================================================
+Test 1: score  0.28661752755897774, execution 13
+Test 2: score  0.3353982608064947, execution 74
+Test 3: score  0.1815529787160024, execution 184
+Test 4: score  0.2793120933987887, execution 360
+Test 5: score  0.5941400271066162, execution 343
+Test 6: score  0.4970005674702036, execution 393
+Test 7: score  0.27311754955688516, execution 527
+Test 8: score  0.2237450935694687, execution 603
+Test 9: score  0.5728974128945312, execution 615
+Test 10: score  0.7056359476691001, execution 613
+Test 11: score  0.37425444311723255, execution 601
+Test 12: score  0.2547417811029784, execution 862
+Test 13: score  0.0, execution 543
+Test 14: score  0.3661247893362807, execution 652
+Test 15: score  0.2588517151948513, execution 778
+Test 16: score  0.46853519566833324, execution 817
+Test 17: score  0.5503602861193262, execution 700
+Test 18: score  0.29134233999539916, execution 640
+Test 19: score  0.4700433743171242, execution 896
+Test 20: score  0.13665482478702073, execution 891
+==============================================================
+TOTAL SCORE: 7.120326208385616, Total time: 11105, Time exceeded in tests: []
+==============================================================
