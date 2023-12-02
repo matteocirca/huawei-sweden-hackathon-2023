@@ -131,7 +131,7 @@ def BBU_check(C_t,M_t,A_t,C_r,M_r,A_r):
     flag = True
     BBU_check_p = math.ceil(max((C_t + C_r) / CPU, (M_t + M_r) / MEM, (A_t + A_r) / ACC))
     #if BBU_check_p > B or (C_t + C_r > CPU_boundary) or (M_t + M_r > MEM_boundary) or ( A_t + A_r > ACC_boundary):
-    if BBU_check_p > (B - math.floor(B * 0.5)):
+    if BBU_check_p > (B - math.floor(B * 0.4)):
     # if BBU_check_p > B:
         flag = False
     return flag
