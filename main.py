@@ -131,7 +131,7 @@ def BBU_check(C_t,M_t,A_t,C_r,M_r,A_r,bbu_par):
     flag = True
     BBU_check_p = math.ceil(max((C_t + C_r) / CPU, (M_t + M_r) / MEM, (A_t + A_r) / ACC))
     #if BBU_check_p > B or (C_t + C_r > CPU_boundary) or (M_t + M_r > MEM_boundary) or ( A_t + A_r > ACC_boundary):
-    if BBU_check_p > (B - math.floor(B * bbu_par)):
+    if BBU_check_p > (B - math.floor(B * 0.3)):
     # if BBU_check_p > B:
         flag = False
     return flag
@@ -192,7 +192,6 @@ def opex(CLOUD_cost_list, BBU_cost_list, IO_cost_list):
 def score_func(OPEX):
     return max(0, baseline_cost/OPEX - 1)
 
-
 def nextTrafficMean(s,t):
     sum = 0
     count = 0
@@ -205,7 +204,8 @@ def nextTrafficMean(s,t):
     #print(sum/count)
     return math.ceil(sum/count)
 
-def order_slice_by_IOcost2(t):
+
+def order_slice_by_IOcost_2(t):
     traffic_list_phy,traffic_list_du,traffic_list_cu = [],[],[]
     for s in range(num_slices):
         benefit = 0
@@ -253,7 +253,7 @@ def order_slice_by_IOcost_4(t):
         # _phy = PHY[s][acc]+benefit
         # _du = DU[s][acc]+benefit
         # _cu = CU[s][mem]+benefit
-        _all = (L[s][l_a]) * T[s][t]
+        _all = L[s][l_a] * T[s][t]
         traffic_list_all.append((_all,s))
     traffic_list_all.sort(reverse=False)
     return [x[1] for x in traffic_list_all]
@@ -305,7 +305,7 @@ def layerheuristic():
         #cycle for phy
         for s in phy_order:
             CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = 0,0,0
-           
+
             deployed[s]['phy'].append(True)
             if deployed[s]['phy_lock'] == 0:
                 if count % 10 == 0:
@@ -337,7 +337,7 @@ def layerheuristic():
                     deployed[s]['phy'][t] = True
 
                 
-                        
+        # cycle for du         
         for s in du_order:
             CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = 0,0,0
 
@@ -386,8 +386,8 @@ def layerheuristic():
                 else:
                     deployed[s]['du'][t] = True
 
-
-                
+        
+        # cycle for cu
         for s in cu_order:
             CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = 0,0,0
             deployed[s]['cu'].append(True)
@@ -499,7 +499,7 @@ def semilayerheuristic():
                     deployed[s]['du'][t] = True
 
 
-
+        # cycle for cu
         for s in phy_du_order:
             CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = 0,0,0
             deployed[s]['cu'].append(True)
@@ -554,20 +554,14 @@ def semilayerheuristic():
 
         IO_cost_list[t] += max(0, IO_cost_list[t] - bandwith) * P
 
-def semisemilayerheuristic(c):
+def semisemilayerheuristic(bbu_par=0.3):
     global CLOUD_cost_list, BBU_cost_list, IO_cost_list
     global deployed
     CPU_boundary, MEM_boundary, ACC_boundary = B*CPU,B*MEM,B*ACC
     CLOUD_cost_list, BBU_cost_list, IO_cost_list = [], [], []
     CPU_allocated_list, MEM_allocated_list, ACC_allocated_list = [], [], []
     count=0
-    bbu_par = 0
-    if c == 0:
-        bbu_par = 0.5
-    elif c == 1:
-        bbu_par = 0.4
-    elif c == 2:
-        bbu_par = 0.3
+
     # for s in range(num_slices):
     #     deployed[s]['mean'] = sorted(T[s])[math.floor(len(T[s])/2)]
 
@@ -580,7 +574,12 @@ def semisemilayerheuristic(c):
         MEM_allocated_list.append(0)
         ACC_allocated_list.append(0)
         
-        order = order_slice_by_IOcost_4(t)
+        if bbu_par == 0.3:
+            order = order_slice_by_IOcost_4(t)
+        if bbu_par == 0.4:
+            order = order_slice_by_IOcost_3(t)[0]
+        if bbu_par == 0.5:
+            order = order_slice_by_IOcost_2(t)
             
 
         #cycle for phy
@@ -681,22 +680,26 @@ if __name__ == "__main__":
         clear()
         parse_init(file + str(i+1) + ".txt", input_folder="Final_Kit/testcases/")
         execution_time = 0
-        # initialize \ dic
-        for s in range(num_slices):
-            deployed[s] = {'cu': [], 'du': [], 'phy': [], 'cu_lock': int(0), 'du_lock': int(0), 'phy_lock': int(0)}
 
         start_time = time.time()
-        for c in range(3):
-            semisemilayerheuristic(c)
+
+        for c, index in zip([0.5, 0.4, 0.3], range(3)):
+            # initialize \ dic
+            for s in range(num_slices):
+                deployed[s] = {'cu': [], 'du': [], 'phy': [], 'cu_lock': int(0), 'du_lock': int(0), 'phy_lock': int(0)}
+                
+            semisemilayerheuristic(bbu_par=c)
             cloud_costs.append(CLOUD_cost_list.copy())
             bbu_costs.append(BBU_cost_list.copy())
             io_costs.append(IO_cost_list.copy())
             deploys.append(deployed.copy())
             opexes.append(opex(CLOUD_cost_list,BBU_cost_list,IO_cost_list))
-            scores.append(score_func(opexes[c]))
+            scores.append(score_func(opexes[index]))
             execution_time = int((time.time() - start_time) * 1000)
-        
 
+            CLOUD_cost_list.clear()
+            BBU_cost_list.clear()
+            IO_cost_list.clear()
 
 
         idx = scores.index(max(scores))
