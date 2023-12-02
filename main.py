@@ -233,7 +233,7 @@ def order_slice_by_IOcost_3(t):
         # _phy = PHY[s][acc]+benefit
         # _du = DU[s][acc]+benefit
         # _cu = CU[s][mem]+benefit
-        _phy_du = (L[s][l_c] + L[s][l_b]) * T[s][t]
+        _phy_du = L[s][l_b] * T[s][t]
         _cu = L[s][l_a] * T[s][t]
         traffic_list_phy_du.append((_phy_du,s))
         traffic_list_cu.append((_cu,s))
@@ -253,7 +253,7 @@ def order_slice_by_IOcost_4(t):
         # _phy = PHY[s][acc]+benefit
         # _du = DU[s][acc]+benefit
         # _cu = CU[s][mem]+benefit
-        _all = L[s][l_a] * T[s][t]
+        _all = L[s][l_a] * T[s][t+1]
         traffic_list_all.append((_all,s))
     traffic_list_all.sort(reverse=False)
     return [x[1] for x in traffic_list_all]
@@ -433,7 +433,7 @@ def layerheuristic():
 
         IO_cost_list[t] += max(0, IO_cost_list[t] - bandwith) * P
 
-def semilayerheuristic():
+def semilayerheuristic(bbu_par=0.3):
     global CLOUD_cost_list, BBU_cost_list, IO_cost_list
     global deployed
     CPU_boundary, MEM_boundary, ACC_boundary = B*CPU,B*MEM,B*ACC
@@ -452,7 +452,7 @@ def semilayerheuristic():
         CPU_allocated_list.append(0)
         MEM_allocated_list.append(0)
         ACC_allocated_list.append(0)
-        if t % 10 == 0:
+        if t == 0:
             phy_du_order, cu_order = order_slice_by_IOcost_3(t)
             
 
@@ -466,7 +466,7 @@ def semilayerheuristic():
             if deployed[s]['phy_lock'] == 0 and deployed[s]['du_lock'] == 0:
                 # if count % 10 == 0:
                 CPU_allocated_p, MEM_allocated_p, ACC_allocated_p = BBU_cost_func(s, t, not(True), not(False), not(False))
-                if (BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p) and PHY[s][acc]>0) : 
+                if BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p,bbu_par): 
                     deployed[s]['phy'][t] = False
                     deployed[s]['du'][t] = False
                     CPU_allocated_list[t] += CPU_allocated_p
@@ -510,7 +510,7 @@ def semilayerheuristic():
                 new = math.ceil(max((CPU_allocated_list[t] + CPU_allocated_p) / CPU, (MEM_allocated_list[t] + MEM_allocated_p) / MEM, (ACC_allocated_list[t] + ACC_allocated_p) / ACC))
                 old = math.ceil(max((CPU_allocated_list[t]) / CPU, (MEM_allocated_list[t]) / MEM, (ACC_allocated_list[t]) / ACC))
                 if new == old:
-                    if BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p)and deployed[s]["phy"][t]==False and deployed[s]["du"][t]==False: 
+                    if BBU_check(CPU_allocated_list[t],MEM_allocated_list[t],ACC_allocated_list[t],CPU_allocated_p,MEM_allocated_p,ACC_allocated_p,bbu_par) and deployed[s]["phy"][t]==False and deployed[s]["du"][t]==False: 
                         deployed[s]['cu'][t] = False
                         CPU_allocated_list[t] += CPU_allocated_p
                         MEM_allocated_list[t] += MEM_allocated_p
@@ -543,7 +543,9 @@ def semilayerheuristic():
 
         count+=1
         BBU_cost_list[t] = BBU_cost_compute(CPU_allocated_list[t], MEM_allocated_list[t], ACC_allocated_list[t])
-        
+        if CPU_allocated_list[t] > CPU_boundary or MEM_allocated_list[t] > MEM_boundary or ACC_allocated_list[t] > ACC_boundary:
+            return False
+
         for s in deployed:
             deployed[s]['phy_lock'] = max(0, deployed[s]['phy_lock'] - 1)
             deployed[s]['du_lock'] = max(0, deployed[s]['du_lock'] - 1)
@@ -553,6 +555,7 @@ def semilayerheuristic():
             CLOUD_cost_list[t] += cloud_cost_func(s,t,deployed[s]["cu"][t],deployed[s]["du"][t],deployed[s]["phy"][t])
 
         IO_cost_list[t] += max(0, IO_cost_list[t] - bandwith) * P
+    return True
 
 def semisemilayerheuristic(bbu_par=0.3):
     global CLOUD_cost_list, BBU_cost_list, IO_cost_list
@@ -699,6 +702,25 @@ if __name__ == "__main__":
                 deploys.append(deployed.copy())
                 opexes.append(opex(CLOUD_cost_list,BBU_cost_list,IO_cost_list))
                 scores.append(score_func(opexes[index]))
+
+                # CLOUD_cost_list.clear()
+                # BBU_cost_list.clear()
+                # IO_cost_list.clear()
+
+                # res = semilayerheuristic(bbu_par=c)
+                # if res == False:
+                #     valid.append(False)
+                # else:
+                #     valid.append(True)
+                #     opex_tmp = opex(CLOUD_cost_list,BBU_cost_list,IO_cost_list)
+                #     if opex_tmp > opexes[-1]:
+                #         cloud_costs[-1] = CLOUD_cost_list.copy()
+                #         bbu_costs[-1] = BBU_cost_list.copy()
+                #         io_costs[-1] = IO_cost_list.copy()
+                #         deploys[-1] = deployed.copy()
+                #         opexes[-1] = opex_tmp
+                #         scores[-1] = score_func(opexes[index])
+
                 execution_time = int((time.time() - start_time) * 1000)
 
             CLOUD_cost_list.clear()
