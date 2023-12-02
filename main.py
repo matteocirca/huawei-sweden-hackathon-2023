@@ -649,7 +649,7 @@ def STATS():
     tot_time = 0
     time_exceeded = []
     print("==============================================================")
-    for i in range(1,21):
+    for i in range(1,41):
         filename = f"output/{i}.csv"
         
         file = open(filename, 'r')
@@ -670,7 +670,7 @@ def STATS():
 
 if __name__ == "__main__":
 
-    for i in range(0,20):
+    for i in range(0,40):
         cloud_costs = []
         bbu_costs = []
         io_costs = []
@@ -679,7 +679,7 @@ if __name__ == "__main__":
         deploys = []
         valid = []
         clear()
-        parse_init(file + str(i+1) + ".txt", input_folder="Final_Kit/testcases/")
+        parse_init(file + str(i+1) + ".txt", input_folder="Final_Kit_Extended/testcases/")
         execution_time = 0
 
         start_time = time.time()
@@ -691,7 +691,7 @@ if __name__ == "__main__":
             for s in range(num_slices):
                 deployed[s] = {'cu': [], 'du': [], 'phy': [], 'cu_lock': int(0), 'du_lock': int(0), 'phy_lock': int(0)}
                 
-            res = semisemilayerheuristic(bbu_par=c)
+            res = semilayerheuristic(bbu_par=c)
             if res == False:
                 valid.append(False)
             else:
